@@ -6,8 +6,8 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 
-contract CVoucher is UUPSUpgradeable, Initializable, OwnableUpgradeable {
-  string public constant name = "CVoucher";
+contract CryptoVoucher is UUPSUpgradeable, Initializable, OwnableUpgradeable {
+  string public constant name = "CryptoVoucher";
 
   // Voucher settings
   // We pack the following into one uint256 `valueClaimFeeActive`:
@@ -40,7 +40,7 @@ contract CVoucher is UUPSUpgradeable, Initializable, OwnableUpgradeable {
 
   bool private _inExecution;
   modifier ReentrancyGuard {
-    require(_inExecution == false, "CVT: Reentrancy");
+    require(_inExecution == false, "CV: Reentrancy");
     _inExecution = true;
     _;
     _inExecution = false;
@@ -51,7 +51,7 @@ contract CVoucher is UUPSUpgradeable, Initializable, OwnableUpgradeable {
     feeReceiver = payable(msg.sender);
     createVoucherEthFeesMin = 0.005 ether;
     createVoucherEthFees = 200;
-    claimPeriod = 5 minutes;
+    claimPeriod = 10 minutes;
     _inExecution = false;
   }
 
@@ -85,8 +85,8 @@ contract CVoucher is UUPSUpgradeable, Initializable, OwnableUpgradeable {
     bytes32 hashedCode = keccak256(abi.encodePacked(voucherCode));
     uint minFees = createVoucherEthFeesMin;
     uint16 isActive = uint16(vouchers[hashedCode].valueClaimFeeActive);
-    require(isActive == 0, "CVT: CODE_TAKEN");
-    require(msg.value > minFees, "CVT: MIN_FEES");
+    require(isActive == 0, "CV: CODE_TAKEN");
+    require(msg.value > minFees, "CV: MIN_FEES");
     // [VALIDATION STOP]
     uint feePercentage = createVoucherEthFees;
     uint ethFees = msg.value * feePercentage / (FEE_DIVISOR + feePercentage);
@@ -94,7 +94,7 @@ contract CVoucher is UUPSUpgradeable, Initializable, OwnableUpgradeable {
       ethFees = minFees;
     
     (bool success,) = feeReceiver.call{value: ethFees}("");
-    require(success, "CVT: FEE_FAILED");
+    require(success, "CV: FEE_FAILED");
     // Now the voucher.
     uint voucherValue = msg.value - ethFees;
     vouchers[hashedCode].redemptionHash = redemptionHash;
@@ -114,16 +114,16 @@ contract CVoucher is UUPSUpgradeable, Initializable, OwnableUpgradeable {
   // Allows to safely execute the redemption method providing the secret without getting front-run.
   // Since arbitrary wallets can call this method over and over again to DOS, pay a user-defined fee to claim redemption.
   // After successfully redeeming the voucher, the caller gets their fee back.
-  // NEVER EVER RUN `claimEthRedemption` AND `redeemCVoucher` IN ONE TRANSACTION.
+  // NEVER EVER RUN `claimEthRedemption` AND `redeemCryptoVoucher` IN ONE TRANSACTION.
   // TO BE ABLE TO DO THAT YOU HAVE TO PROVIDE THE SECRET, THUS YOU CAN GET FRONT-RUN.
   // We do ave accumulated 
   function claimEthRedemption(bytes32 voucherCode) external payable ReentrancyGuard {
     (, uint120 claimFee, uint16 isActive) = _deserializeValueClaimFeeActive(vouchers[voucherCode].valueClaimFeeActive);
     (address claimedBy, uint64 claimExpiresAt, uint32 expiredClaims) = _deserializeClaimedByExpiresAt(vouchers[voucherCode].claimedByExpiresAt);
     
-    require(isActive == 1, "CVT: NOT_CLAIMABLE");
-    require(msg.value == claimFee, "CVT: WRONG_REDEEM_FEE");
-    require(claimedBy == address(0) || block.timestamp >= claimExpiresAt, "CVT: REDEMPTION_RUNNING");
+    require(isActive == 1, "CV: NOT_CLAIMABLE");
+    require(msg.value == claimFee, "CV: WRONG_REDEEM_FEE");
+    require(claimedBy == address(0) || block.timestamp >= claimExpiresAt, "CV: REDEMPTION_RUNNING");
     // Count how many times someone missed to redeem the voucher.
     // That way we can pay that to the final redeemer and the voucher service.
     if(claimedBy != address(0)){
@@ -140,9 +140,9 @@ contract CVoucher is UUPSUpgradeable, Initializable, OwnableUpgradeable {
     uint valueClaimFeeActive = vouchers[voucherCode].valueClaimFeeActive;
     (address claimedBy, uint64 claimExpiresAt, uint32 expiredClaims) = _deserializeClaimedByExpiresAt(vouchers[voucherCode].claimedByExpiresAt);
     uint claimFeePayed = uint120(valueClaimFeeActive >> 16);
-    require(claimedBy == msg.sender, "CVT: NOT_CLAIMED");
-    require(block.timestamp < claimExpiresAt, "CVT: REDEEM_CLAIM_EXPIRED");
-    require(keccak256(abi.encodePacked(secret)) == vouchers[voucherCode].redemptionHash, "CVT: WRONG_SECRET");
+    require(claimedBy == msg.sender, "CV: NOT_CLAIMED");
+    require(block.timestamp < claimExpiresAt, "CV: REDEEM_CLAIM_EXPIRED");
+    require(keccak256(abi.encodePacked(secret)) == vouchers[voucherCode].redemptionHash, "CV: WRONG_SECRET");
     // In fact, we do not need to check if "isActive" is 1.
     // Both, voucher value and claim fees will be 0 so we cannot send ETH twice anyways.
     // And we already have an active check in claim voucher as well.
@@ -155,13 +155,13 @@ contract CVoucher is UUPSUpgradeable, Initializable, OwnableUpgradeable {
     // Redeemers get 20% of the claim fees.
     if(expiredClaims > 0){
       uint totalExpiredClaimsValue = claimFeePayed * expiredClaims;
-      uint cvoucherShare = totalExpiredClaimsValue * 8_000 / FEE_DIVISOR;
-      (bool expiredClaimsSuccess,) = payable(feeReceiver).call{value: cvoucherShare}("");
-      require(expiredClaimsSuccess, "CVT: REDEEM_FAILED_EXPIRED_CLAIMS");
-      redeemAndClaimValue += totalExpiredClaimsValue - cvoucherShare;
+      uint CryptoVoucherShare = totalExpiredClaimsValue * 8_000 / FEE_DIVISOR;
+      (bool expiredClaimsSuccess,) = payable(feeReceiver).call{value: CryptoVoucherShare}("");
+      require(expiredClaimsSuccess, "CV: REDEEM_FAILED_EXPIRED_CLAIMS");
+      redeemAndClaimValue += totalExpiredClaimsValue - CryptoVoucherShare;
     }
     (bool success,) = payable(msg.sender).call{value: redeemAndClaimValue}("");
-    require(success, "CVT: REDEEM_FAILED");
+    require(success, "CV: REDEEM_FAILED");
     emit VoucherRedeemed(voucherCode, uint(voucherValue));
   }
 
@@ -172,15 +172,15 @@ contract CVoucher is UUPSUpgradeable, Initializable, OwnableUpgradeable {
   ) external onlyOwner {
     feeReceiver = _feeReceiver;
     // Voucher min fees must not be too high.
-    require(_createVoucherEthFeesMin <= 1 ether, "CVT: CVEF_TOO_HIGH");
+    require(_createVoucherEthFeesMin <= 1 ether, "CV: CVEF_TOO_HIGH");
     createVoucherEthFeesMin = _createVoucherEthFeesMin;
     // Voucher fees must not be too high.
-    require(_createVoucherEthFees <= 1_000, "CVT: CVEF_TOO_HIGH");
+    require(_createVoucherEthFees <= 1_000, "CV: CVEF_TOO_HIGH");
     createVoucherEthFees = _createVoucherEthFees;
     // Must not be too small to not make people run into claim penalty.
-    require(_claimPeriod >= 30 seconds, "CVT: RF_TOO_LOW");
+    require(_claimPeriod >= 30 seconds, "CV: RF_TOO_LOW");
     claimPeriod = _claimPeriod;
   }
 
-  function _authorizeUpgrade(address) internal virtual override { require(msg.sender == owner(), "CVT: NO_AUTH"); }
+  function _authorizeUpgrade(address) internal virtual override { require(msg.sender == owner(), "CV: NO_AUTH"); }
 }

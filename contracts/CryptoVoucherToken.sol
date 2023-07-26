@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "hardhat/console.sol";
 
-contract CVoucherToken is ERC20, Ownable {
+contract CryptoVoucherToken is ERC20, Ownable {
   /// General settings
   uint constant public TOTAL_SUPPLY = 10_000_000 ether;
   // Governance
@@ -30,13 +30,13 @@ contract CVoucherToken is ERC20, Ownable {
   mapping(address => bool) public tradingWhiteList;
   
   modifier canTrade(address from, address to){
-    require(tradingEnabled || tradingWhiteList[from] || tradingWhiteList[to], "CROT: Trading has not started");
+    require(tradingEnabled || tradingWhiteList[from] || tradingWhiteList[to], "CVT: Trading has not started");
     _;
   }
   bool isLiquidating;
 
-  constructor(address uniswapRouterAddress) ERC20("CVoucherToken Token", "CRO") {
-    fees = Fees(10_000 ether, true, 500, 0, 500, 500, 0, 500);
+  constructor(address uniswapRouterAddress) ERC20("CryptoVoucherToken Token", "CVT") {
+    fees = Fees(10_000 ether, true, 400, 100, 500, 400, 100, 500);
     teamWallet = liquidityWallet = msg.sender;
     uniswapRouter = IUniswapV2Router02(uniswapRouterAddress);
     // Super powers for deployer.
@@ -89,7 +89,7 @@ contract CVoucherToken is ERC20, Ownable {
     // Send team funds.
     uint ethForTeam = ethGained * teamTokens / (teamTokens + autoLiquidityTokensToLiquidate);
     (bool success,) = payable(teamWallet).call{value: ethForTeam}("");
-    require(success, "CROT: LIQ_FAILED");
+    require(success, "CVT: LIQ_FAILED");
     // Auto-liquidity
     if(autoLiquidityTokensToLiquidate > 0)
       _autoLiquidity(autoLiquidityTokensToLiquidate, ethGained - ethForTeam, liquidityWallet);
@@ -117,7 +117,7 @@ contract CVoucherToken is ERC20, Ownable {
   // Recovery
   function recoverERC20(address token, uint balance) external onlyOwner {
     // Don't recover CRO tokens. Safety for holders.
-    require(token != address(this), "CROT: INVALID_RECOVER");
+    require(token != address(this), "CVT: INVALID_RECOVER");
     IERC20(token).transfer(owner(), balance);
   }
   function recoverETH(uint balance) external onlyOwner {
@@ -132,7 +132,7 @@ contract CVoucherToken is ERC20, Ownable {
       // Maximum of 15% each.
       uint16 buyTotal = buyTeam + buyAutoLiquidity;
       uint16 sellTotal = sellTeam + sellAutoLiquidity;
-      require(buyTotal <= 1_500 && sellTotal <= 1_500, "CROT: TAXES_TOO_HIGH");
+      require(buyTotal <= 1_500 && sellTotal <= 1_500, "CVT: TAXES_TOO_HIGH");
 
       fees = Fees(liquidationThreshold, liquidationEnabled, buyTeam, buyAutoLiquidity, buyTotal, sellTeam, sellAutoLiquidity, sellTotal);
     }
@@ -146,16 +146,16 @@ contract CVoucherToken is ERC20, Ownable {
   }
   // Update wallets.
   function setTeamWallet(address _teamWallet) external onlyOwner {
-    require(teamWallet != address(0), "CROT: INVALID_FEE_WALLET");
+    require(teamWallet != address(0), "CVT: INVALID_FEE_WALLET");
     teamWallet = _teamWallet;
   }
   function setLiquidityWallet(address _liquidityWallet) external onlyOwner {
-    require(teamWallet != address(0), "CROT: INVALID_FEE_WALLET");
+    require(teamWallet != address(0), "CVT: INVALID_FEE_WALLET");
     liquidityWallet = _liquidityWallet;
   }
   // Trading
   function startTrading() external onlyOwner { 
-    require(tradingEnabled == false, "CROT: ALREADY_STARTED");
+    require(tradingEnabled == false, "CVT: ALREADY_STARTED");
     tradingEnabled = true;
   }
   function whiteListTrade(address target, bool _canTrade) external onlyOwner {

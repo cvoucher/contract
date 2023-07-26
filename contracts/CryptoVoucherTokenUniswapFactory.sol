@@ -3,7 +3,7 @@ pragma solidity =0.5.16;
 
 import "@uniswap/v2-core/contracts/UniswapV2Factory.sol";
 
-contract CVoucherTokenUniswapFactory is UniswapV2Factory {
+contract CryptoVoucherTokenUniswapFactory is UniswapV2Factory {
   bool notAbstract = true;
   
   constructor() UniswapV2Factory(msg.sender) public {

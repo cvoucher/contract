@@ -7,58 +7,58 @@ import { expect } from "chai";
 import { TypedDataDomain, TypedDataEncoder, decodeBytes32String, encodeBytes32String } from "ethers";
 import { ethers, upgrades } from "hardhat";
 import { EIP712TypeDefinition } from "./EIP712.types";
-import { CVoucher } from "../typechain-types";
+import { CryptoVoucher } from "../typechain-types";
 
 const parseEther = ethers.parseEther;
 const ZeroAddress = ethers.ZeroAddress;
 const hashString = (string: string) => ethers.keccak256(ethers.toUtf8Bytes(string));
 
-describe("CVoucher", function () {
+describe("CryptoVoucher", function () {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
-  async function deployCVoucherFixture() {
+  async function deployCryptoVoucherFixture() {
 
     // Contracts are deployed using the first signer/account by default
     const [owner, alice, bob, charlie] = await ethers.getSigners();
 
-    const cvoucher = await ethers.getContractFactory("CVoucher");
-    const CVoucher = await upgrades.deployProxy(cvoucher, []);
-    const ownerVoucher = await CVoucher.connect(owner) as CVoucher;
-    const aliceVoucher = await CVoucher.connect(alice) as CVoucher;
-    const bobVoucher = await CVoucher.connect(bob) as CVoucher;
-    const charlieVoucher = await CVoucher.connect(charlie) as CVoucher;
+    const cryptoVoucher = await ethers.getContractFactory("CryptoVoucher");
+    const CryptoVoucher = await upgrades.deployProxy(cryptoVoucher, []);
+    const ownerVoucher = await CryptoVoucher.connect(owner) as CryptoVoucher;
+    const aliceVoucher = await CryptoVoucher.connect(alice) as CryptoVoucher;
+    const bobVoucher = await CryptoVoucher.connect(bob) as CryptoVoucher;
+    const charlieVoucher = await CryptoVoucher.connect(charlie) as CryptoVoucher;
     const voucherCode = ethers.solidityPacked(["string"], ["abcd-defg-5112-954J"]);
-    const plainSecret = ethers.solidityPacked(["string"], ["CVoucherTesting!"]);
+    const plainSecret = ethers.solidityPacked(["string"], ["CryptoVoucherTesting!"]);
     const secret = hashString(plainSecret);
 
-    return { CVoucher, owner, ownerVoucher, alice, aliceVoucher, bob, bobVoucher, charlie, charlieVoucher, voucherCode, plainSecret, secret };
+    return { CryptoVoucher, owner, ownerVoucher, alice, aliceVoucher, bob, bobVoucher, charlie, charlieVoucher, voucherCode, plainSecret, secret };
   }
 
   describe("Deployment", function () {
     it("Simple deployment worked", async function () {
-      const { CVoucher, owner } = await loadFixture(deployCVoucherFixture);
+      const { CryptoVoucher, owner } = await loadFixture(deployCryptoVoucherFixture);
 
-      expect(await CVoucher.owner()).to.equal(owner.address);
+      expect(await CryptoVoucher.owner()).to.equal(owner.address);
     });
     it("Only admin can upgrade to new contract address", async() => {
-      const { CVoucher, ownerVoucher, owner, aliceVoucher } = await loadFixture(deployCVoucherFixture);
+      const { CryptoVoucher, ownerVoucher, owner, aliceVoucher } = await loadFixture(deployCryptoVoucherFixture);
 
-      await expect(aliceVoucher.upgradeTo(ZeroAddress)).to.be.revertedWith("CVT: NO_AUTH");
-      const contractFactory = await ethers.getContractFactory("CVoucher");
-      await upgrades.upgradeProxy(await CVoucher.getAddress(), contractFactory);
+      await expect(aliceVoucher.upgradeTo(ZeroAddress)).to.be.revertedWith("CV: NO_AUTH");
+      const contractFactory = await ethers.getContractFactory("CryptoVoucher");
+      await upgrades.upgradeProxy(await CryptoVoucher.getAddress(), contractFactory);
     });
   });
 
   describe("Voucher", function () {
     describe("Create", () => {
       it("Not meeting minimum ETH fee", async() => {
-        const { aliceVoucher, secret, voucherCode } = await loadFixture(deployCVoucherFixture);
+        const { aliceVoucher, secret, voucherCode } = await loadFixture(deployCryptoVoucherFixture);
 
-        await expect(aliceVoucher.createEthVoucher(voucherCode, secret, parseEther("0.5"))).to.be.revertedWith("CVT: MIN_FEES");
+        await expect(aliceVoucher.createEthVoucher(voucherCode, secret, parseEther("0.5"))).to.be.revertedWith("CV: MIN_FEES");
       });
       it("Fee is minimium ETH fee", async() => {
-        const { aliceVoucher, secret, voucherCode } = await loadFixture(deployCVoucherFixture);
+        const { aliceVoucher, secret, voucherCode } = await loadFixture(deployCryptoVoucherFixture);
         const voucherValue = parseEther("0.1");
         const voucherMinFee = parseEther("0.005");
 
@@ -67,7 +67,7 @@ describe("CVoucher", function () {
         expect(generatedVoucher.voucherValue).to.eq(voucherValue - voucherMinFee);
       });
       it("Fee is ETH fee percentage", async() => {
-        const { aliceVoucher, secret, voucherCode } = await loadFixture(deployCVoucherFixture);
+        const { aliceVoucher, secret, voucherCode } = await loadFixture(deployCryptoVoucherFixture);
         const voucherValue = parseEther("5");
         // Fee is 2%
         const voucherFee = voucherValue * BigInt(2) / BigInt(100);
@@ -77,7 +77,7 @@ describe("CVoucher", function () {
         expect(generatedVoucher.voucherValue).to.eq(voucherValue);
       });
       it("Valid voucher", async() => {
-        const { owner, alice, aliceVoucher, secret, plainSecret, voucherCode } = await loadFixture(deployCVoucherFixture);
+        const { owner, alice, aliceVoucher, secret, plainSecret, voucherCode } = await loadFixture(deployCryptoVoucherFixture);
         const voucherValue = parseEther("15");
         // Fee is 2%
         const voucherFee = voucherValue * BigInt(2) / BigInt(100);
@@ -100,14 +100,14 @@ describe("CVoucher", function () {
     });
     describe("Claim to know secret", () => {
       it("Can't claim secret of vouchers that do not exist", async() => {
-        const { owner, alice, aliceVoucher } = await loadFixture(deployCVoucherFixture);
+        const { owner, alice, aliceVoucher } = await loadFixture(deployCryptoVoucherFixture);
 
-        await expect(aliceVoucher.claimEthRedemption(hashString("1"))).to.be.revertedWith("CVT: NOT_CLAIMABLE");
-        await expect(aliceVoucher.claimEthRedemption(hashString("12121"))).to.be.revertedWith("CVT: NOT_CLAIMABLE");
-        await expect(aliceVoucher.claimEthRedemption(hashString("ffda-sdfs-FSD1-h563"))).to.be.revertedWith("CVT: NOT_CLAIMABLE");
+        await expect(aliceVoucher.claimEthRedemption(hashString("1"))).to.be.revertedWith("CV: NOT_CLAIMABLE");
+        await expect(aliceVoucher.claimEthRedemption(hashString("12121"))).to.be.revertedWith("CV: NOT_CLAIMABLE");
+        await expect(aliceVoucher.claimEthRedemption(hashString("ffda-sdfs-FSD1-h563"))).to.be.revertedWith("CV: NOT_CLAIMABLE");
       });
       it("Claim fees need to exactly match", async() => {
-        const { aliceVoucher, bobVoucher, secret, voucherCode } = await loadFixture(deployCVoucherFixture);
+        const { aliceVoucher, bobVoucher, secret, voucherCode } = await loadFixture(deployCryptoVoucherFixture);
         const voucherValue = parseEther("2");
         const voucher1ClaimFee = parseEther("60");
         const voucher2ClaimFee = voucher1ClaimFee + parseEther("10");
@@ -115,39 +115,39 @@ describe("CVoucher", function () {
         await aliceVoucher.createEthVoucher(voucherCode, secret, voucher1ClaimFee, {value: voucherValue});
         await aliceVoucher.createEthVoucher(voucherCode2, secret, voucher2ClaimFee, {value: voucherValue});
         // Sent claim fee has to match EXACTLY.
-        await expect(bobVoucher.claimEthRedemption(hashString(voucherCode))).to.be.revertedWith("CVT: WRONG_REDEEM_FEE");
-        await expect(bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucher1ClaimFee - BigInt(1)})).to.be.revertedWith("CVT: WRONG_REDEEM_FEE");
-        await expect(bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucher1ClaimFee + BigInt(1)})).to.be.revertedWith("CVT: WRONG_REDEEM_FEE");
+        await expect(bobVoucher.claimEthRedemption(hashString(voucherCode))).to.be.revertedWith("CV: WRONG_REDEEM_FEE");
+        await expect(bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucher1ClaimFee - BigInt(1)})).to.be.revertedWith("CV: WRONG_REDEEM_FEE");
+        await expect(bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucher1ClaimFee + BigInt(1)})).to.be.revertedWith("CV: WRONG_REDEEM_FEE");
         await bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucher1ClaimFee});
         await bobVoucher.claimEthRedemption(hashString(voucherCode2), {value: voucher2ClaimFee});
       });
       it("Claim only possible if nobody other already claims", async() => {
-        const { aliceVoucher, bobVoucher, charlieVoucher, secret, voucherCode } = await loadFixture(deployCVoucherFixture);
+        const { aliceVoucher, bobVoucher, charlieVoucher, secret, voucherCode } = await loadFixture(deployCryptoVoucherFixture);
         const voucherValue = parseEther("2");
         const voucherClaimFee = parseEther("60");
         
         await aliceVoucher.createEthVoucher(voucherCode, secret, voucherClaimFee, {value: voucherValue});
         await charlieVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee});
-        await expect(bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee})).to.be.revertedWith("CVT: REDEMPTION_RUNNING");
+        await expect(bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee})).to.be.revertedWith("CV: REDEMPTION_RUNNING");
       });
       it("Claim by someone other while already claimed only after lock time passed", async() => {
-        const { aliceVoucher, bobVoucher, charlieVoucher, secret, voucherCode } = await loadFixture(deployCVoucherFixture);
+        const { aliceVoucher, bobVoucher, charlieVoucher, secret, voucherCode } = await loadFixture(deployCryptoVoucherFixture);
         const voucherValue = parseEther("2");
         const voucherClaimFee = parseEther("60");
         const lockTime = await aliceVoucher.claimPeriod();
         
         await aliceVoucher.createEthVoucher(voucherCode, secret, voucherClaimFee, {value: voucherValue});
         await charlieVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee});
-        await expect(charlieVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee})).to.be.revertedWith("CVT: REDEMPTION_RUNNING");
+        await expect(charlieVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee})).to.be.revertedWith("CV: REDEMPTION_RUNNING");
         // Wait until almost enough time has passed.
         await time.increase(lockTime - BigInt(10));
-        await expect(bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee})).to.be.revertedWith("CVT: REDEMPTION_RUNNING");
+        await expect(bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee})).to.be.revertedWith("CV: REDEMPTION_RUNNING");
         // Wait one more second. Now it should be possible to claim.
         await time.increase(10);
         await bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee});
       });
       it("Successful, fully-functional first claim", async() => {
-        const { aliceVoucher, bob, bobVoucher, secret, voucherCode } = await loadFixture(deployCVoucherFixture);
+        const { aliceVoucher, bob, bobVoucher, secret, voucherCode } = await loadFixture(deployCryptoVoucherFixture);
         const voucherValue = parseEther("2");
         const voucherClaimFee = parseEther("60");
 
@@ -160,7 +160,7 @@ describe("CVoucher", function () {
         expect(claimedVoucher.claimExpiresAt).to.eq(txnTimestamp + claimPeriod);
       });
       it("Successful, fully-functional second claim", async() => {
-        const { aliceVoucher, bob, bobVoucher, secret, voucherCode } = await loadFixture(deployCVoucherFixture);
+        const { aliceVoucher, bob, bobVoucher, secret, voucherCode } = await loadFixture(deployCryptoVoucherFixture);
         const voucherValue = parseEther("2");
         const voucherClaimFee = parseEther("60");
         const claimPeriod = await aliceVoucher.claimPeriod();
@@ -178,7 +178,7 @@ describe("CVoucher", function () {
     describe("Redeem ETH voucher", () => {
       async function signMessage(signer: HardhatEthersSigner, contractAddress: string, message: Object) {
         const domain: TypedDataDomain = {
-          name: "CVoucher",
+          name: "CryptoVoucher",
           version: "1",
           chainId: 31337,
           verifyingContract: contractAddress
@@ -194,7 +194,7 @@ describe("CVoucher", function () {
         return await signer.signTypedData(domain, types, message);
       }
       async function aliceCreatesVoucher() {
-        const { owner, alice, aliceVoucher, bob, bobVoucher, plainSecret, secret, voucherCode } = await loadFixture(deployCVoucherFixture);
+        const { owner, alice, aliceVoucher, bob, bobVoucher, plainSecret, secret, voucherCode } = await loadFixture(deployCryptoVoucherFixture);
         const voucherValue = parseEther("2");
         // Creation fees are 2% of total value. Add this.
         const voucherFee = voucherValue * BigInt(2) / BigInt(100);
@@ -206,27 +206,27 @@ describe("CVoucher", function () {
       }
 
       it("Voucher must be claimed by wallet currently redeeming", async() => {
-        const { alice, bobVoucher, charlieVoucher } = await loadFixture(deployCVoucherFixture);
+        const { alice, bobVoucher, charlieVoucher } = await loadFixture(deployCryptoVoucherFixture);
         const { voucherCode, voucherClaimFee, secret } = await aliceCreatesVoucher();
         // Bob did not claim yet.
-        await expect(bobVoucher.redeemEthVoucher(hashString(voucherCode), secret)).to.be.revertedWith("CVT: NOT_CLAIMED");
+        await expect(bobVoucher.redeemEthVoucher(hashString(voucherCode), secret)).to.be.revertedWith("CV: NOT_CLAIMED");
         await bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee});
         // Now bob claimed. Charlie can neither claim nor redeem, even though he has the secret and the signature.
-        await expect(charlieVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee})).to.be.revertedWith("CVT: REDEMPTION_RUNNING");
-        await expect(charlieVoucher.redeemEthVoucher(hashString(voucherCode), secret)).to.be.revertedWith("CVT: NOT_CLAIMED");
+        await expect(charlieVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee})).to.be.revertedWith("CV: REDEMPTION_RUNNING");
+        await expect(charlieVoucher.redeemEthVoucher(hashString(voucherCode), secret)).to.be.revertedWith("CV: NOT_CLAIMED");
       });
       it("Voucher claim period expired", async() => {
-        const { alice, bobVoucher } = await loadFixture(deployCVoucherFixture);
+        const { alice, bobVoucher } = await loadFixture(deployCryptoVoucherFixture);
         const { voucherCode, voucherClaimFee, plainSecret } = await aliceCreatesVoucher();
         const claimPeriod = await bobVoucher.claimPeriod();
 
         await bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee});
         // Let enough time pass to fail redemption even though plainSecret and signature are correct.
         await time.increase(claimPeriod);
-        await expect(bobVoucher.redeemEthVoucher(hashString(voucherCode), plainSecret)).to.be.revertedWith("CVT: REDEEM_CLAIM_EXPIRED");
+        await expect(bobVoucher.redeemEthVoucher(hashString(voucherCode), plainSecret)).to.be.revertedWith("CV: REDEEM_CLAIM_EXPIRED");
       });
       it("Fully-functional voucher redemption", async() => {
-        const { owner, bob, bobVoucher, voucherCode, plainSecret, secret } = await loadFixture(deployCVoucherFixture);
+        const { owner, bob, bobVoucher, voucherCode, plainSecret, secret } = await loadFixture(deployCryptoVoucherFixture);
         const { voucherClaimFee, voucherValue } = await aliceCreatesVoucher();
 
         await bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee});
@@ -243,7 +243,7 @@ describe("CVoucher", function () {
         expect((await bobVoucher.getEthVoucher(voucherCode)).slice(0, 4)).to.be.eql([secret, BigInt(0), BigInt(0), BigInt(0)]);
       });
       it("Reclaim voucher redemption after claim period and redeem then", async() => {
-        const { owner, alice, aliceVoucher, bob, bobVoucher, charlieVoucher, voucherCode, plainSecret } = await loadFixture(deployCVoucherFixture);
+        const { owner, alice, aliceVoucher, bob, bobVoucher, charlieVoucher, voucherCode, plainSecret } = await loadFixture(deployCryptoVoucherFixture);
         const { voucherClaimFee, voucherValue, secret } = await aliceCreatesVoucher();
         const claimPeriod = await bobVoucher.claimPeriod();
         const redeemClainExpiredBonus = voucherClaimFee * BigInt(20) / BigInt(100);
@@ -251,7 +251,7 @@ describe("CVoucher", function () {
         await bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee});
         // Some arbitrary time passing.
         await time.increase(claimPeriod);
-        await expect(bobVoucher.redeemEthVoucher(hashString(voucherCode), plainSecret)).to.be.revertedWith("CVT: REDEEM_CLAIM_EXPIRED");
+        await expect(bobVoucher.redeemEthVoucher(hashString(voucherCode), plainSecret)).to.be.revertedWith("CV: REDEEM_CLAIM_EXPIRED");
         await bobVoucher.claimEthRedemption(hashString(voucherCode), {value: voucherClaimFee});
         const feeReceiverEthBefore = await ethers.provider.getBalance(owner.address);
         const bobEthBefore = await ethers.provider.getBalance(bob.address);

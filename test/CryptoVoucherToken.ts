@@ -12,7 +12,7 @@ const inFutureTime = async() => (await time.latest()) + 3_000;
 const HOUR = 3600;
 const MINUTE = 60;
 
-describe("CVoucherToken", function () {
+describe("CryptoVoucherToken", function () {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
@@ -20,14 +20,14 @@ describe("CVoucherToken", function () {
     // Contracts are deployed using the first signer/account by default
     const [owner, alice, bob] = await ethers.getSigners();
 
-    const CVoucherWeth = await ethers.getContractFactory("WETH");
-    const CVoucherUniswapFactory = await ethers.getContractFactory("CVoucherTokenUniswapFactory");
-    const CVoucherUniswapRouter = await ethers.getContractFactory("CVoucherTokenUniswapRouter");
-    const CVoucher = await ethers.getContractFactory("CVoucherToken");
+    const CryptoVoucherWeth = await ethers.getContractFactory("WETH");
+    const CryptoVoucherUniswapFactory = await ethers.getContractFactory("CryptoVoucherTokenUniswapFactory");
+    const CryptoVoucherUniswapRouter = await ethers.getContractFactory("CryptoVoucherTokenUniswapRouter");
+    const CVoucher = await ethers.getContractFactory("CryptoVoucherToken");
     // Deploy contracts.
-    const weth = (await CVoucherWeth.deploy());
-    const factoryContract = await CVoucherUniswapFactory.deploy();
-    const routerOwner = await CVoucherUniswapRouter.deploy(await factoryContract.getAddress(), await weth.getAddress());
+    const weth = (await CryptoVoucherWeth.deploy());
+    const factoryContract = await CryptoVoucherUniswapFactory.deploy();
+    const routerOwner = await CryptoVoucherUniswapRouter.deploy(await factoryContract.getAddress(), await weth.getAddress());
     const cvoucherOwner = await CVoucher.deploy(await routerOwner.getAddress());
     // Create pair and register taxes.
     await factoryContract.createPair(await weth.getAddress(), await cvoucherOwner.getAddress());
@@ -57,7 +57,7 @@ describe("CVoucherToken", function () {
         (await cvoucher.TOTAL_SUPPLY()) * BigInt(90) / BigInt(100)
       );
       expect(await cvoucher.owner()).to.eq(await owner.getAddress());
-      expect(await cvoucher.fees()).to.eql([parseEther("10000"), true, BigInt(500), BigInt(0), BigInt(500), BigInt(500), BigInt(0), BigInt(500)]);
+      expect(await cvoucher.fees()).to.eql([parseEther("10000"), true, BigInt(400), BigInt(100), BigInt(500), BigInt(400), BigInt(100), BigInt(500)]);
       expect(await cvoucher.ignoreFees(await owner.getAddress())).to.eq(true);
       expect(await cvoucher.teamWallet()).to.eq(await owner.getAddress());
       expect(await cvoucher.liquidityWallet()).to.eq(await owner.getAddress());
@@ -76,7 +76,7 @@ describe("CVoucherToken", function () {
       await cvoucherAlice.transfer(await cvoucherAlice.getAddress(), tokensToReclaim);
       // Reclaim on owner.
       const contractTokenBalance = await cvoucherOwner.balanceOf(await cvoucherOwner.getAddress());
-      await expect(cvoucherOwner.recoverERC20(await cvoucherOwner.getAddress(), contractTokenBalance)).to.be.revertedWith("CROT: INVALID_RECOVER");
+      await expect(cvoucherOwner.recoverERC20(await cvoucherOwner.getAddress(), contractTokenBalance)).to.be.revertedWith("CVT: INVALID_RECOVER");
     });
     it("recoverETH", async() => {
       const { cvoucherOwner, routerOwner, owner, alice, bob } = await loadFixture(deployCVoucherFixture);
@@ -101,9 +101,9 @@ describe("CVoucherToken", function () {
       // Disallowed by anyone but owner.
       await expect(cvoucherAlice.setFees(parseEther("10000"), true, 200, 200, 300, 300)).to.be.revertedWith("Ownable: caller is not the owner");
       // Maximum of buy and sell is 30% each.
-      await expect(cvoucherOwner.setFees(parseEther("10000"), true, 1337, 2000, 400, 800)).to.be.revertedWith("CROT: TAXES_TOO_HIGH");
-      await expect(cvoucherOwner.setFees(parseEther("10000"), true, 1337, 2000, 600, 2401)).to.be.revertedWith("CROT: TAXES_TOO_HIGH");
-      await expect(cvoucherOwner.setFees(parseEther("10000"), true, 1337, 1664, 200, 4500)).to.be.revertedWith("CROT: TAXES_TOO_HIGH");
+      await expect(cvoucherOwner.setFees(parseEther("10000"), true, 1337, 2000, 400, 800)).to.be.revertedWith("CVT: TAXES_TOO_HIGH");
+      await expect(cvoucherOwner.setFees(parseEther("10000"), true, 1337, 2000, 600, 2401)).to.be.revertedWith("CVT: TAXES_TOO_HIGH");
+      await expect(cvoucherOwner.setFees(parseEther("10000"), true, 1337, 1664, 200, 4500)).to.be.revertedWith("CVT: TAXES_TOO_HIGH");
       await cvoucherOwner.setFees(parseEther("10000"), true, 350, 150, 1100, 400);
     });
     it("setTakeFee", async() => {
@@ -311,8 +311,8 @@ describe("CVoucherToken", function () {
       }
     });
     async function buy(from: SignerWithAdress, cvoucherAddress: string, routerAddress: string, wethAddress: string, amount: bigint){
-      const userContract = await (await (await ethers.getContractFactory("CVoucherToken")).connect(from)).attach(cvoucherAddress);
-      const userRouter = await (await (await ethers.getContractFactory("CVoucherTokenUniswapRouter")).connect(from)).attach(routerAddress);
+      const userContract = await (await (await ethers.getContractFactory("CryptoVoucherToken")).connect(from)).attach(cvoucherAddress);
+      const userRouter = await (await (await ethers.getContractFactory("CryptoVoucherTokenUniswapRouter")).connect(from)).attach(routerAddress);
       const weth = await (await (await ethers.getContractFactory("WETH")).connect(from)).attach(wethAddress);
       const tokenBalance = await userContract.balanceOf(await from.getAddress());
       await userRouter.swapExactETHForTokensSupportingFeeOnTransferTokens(
@@ -324,8 +324,8 @@ describe("CVoucherToken", function () {
       return tokensGained;
     }
     async function sell(from: SignerWithAdress, cvoucherAddress: string, routerAddress: string, wethAddress: string, amount: ethers.BigNumber){
-      const userContract = await (await (await ethers.getContractFactory("CVoucherToken")).connect(from)).attach(cvoucherAddress);
-      const userRouter = await (await (await ethers.getContractFactory("CVoucherTokenUniswapRouter")).connect(from)).attach(routerAddress);
+      const userContract = await (await (await ethers.getContractFactory("CryptoVoucherToken")).connect(from)).attach(cvoucherAddress);
+      const userRouter = await (await (await ethers.getContractFactory("CryptoVoucherTokenUniswapRouter")).connect(from)).attach(routerAddress);
       const weth = await (await (await ethers.getContractFactory("WETH")).connect(from)).attach(wethAddress);
       await userContract.approve(await userRouter.getAddress(), ethers.MaxUint256);
       const ethBalance = await from.provider.getBalance(await from.getAddress());
