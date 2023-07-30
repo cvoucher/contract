@@ -5,8 +5,8 @@
 // will compile your contracts, add the Hardhat Runtime Environment's members to the
 // global scope, and execute the script.
 const hre = require("hardhat");
-import { ethers } from "hardhat";
-import { CryptoVoucher, CryptoVoucherToken } from "../typechain-types";
+import { ethers, upgrades } from "hardhat";
+import { CryptoVoucher} from "../typechain-types";
 
 async function main() {
   if (hre.network.name == "localhost") {
@@ -20,17 +20,11 @@ async function main() {
     );
     await CryptoVoucher.initialize();
   } else if (hre.network.name == "ethereum") {
-    const CryptoVoucherTokenFactory = await ethers.getContractFactory("CryptoVoucherToken");
-    const CryptoVoucherToken = await CryptoVoucherTokenFactory.deploy(
-      "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", 
-      { 
-        maxFeePerGas: ethers.parseUnits("17", "gwei"),
-        maxPriorityFeePerGas: ethers.parseUnits("1", "gwei")
-      }
-    );
+    const CryptoVoucherFactory = await ethers.getContractFactory("CryptoVoucher");
+    const CryptoVoucher = await upgrades.deployProxy(CryptoVoucherFactory, []);
 
     console.log(
-      `CryptoVoucherToken deployed to ${await CryptoVoucherToken.getAddress()}`
+      `CryptoVoucher deployed to ${await CryptoVoucher.getAddress()}`
     );
   }
 }

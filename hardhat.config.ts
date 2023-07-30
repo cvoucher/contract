@@ -28,8 +28,18 @@ const config: HardhatUserConfig = {
       accounts: {
         mnemonic: process.env.mnemonic
       }
+    },
+    ethereum: {
+      url: "https://eth.llamarpc.com",
+      chainId: 1,
+      accounts: [process.env.OWNER_KEY],
     }
-  }
+  },
+  etherscan: {
+    apiKey: {
+      mainnet: process.env.ETHSCAN_API_KEY
+    }
+  },
 };
 
 export default config;

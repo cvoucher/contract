@@ -116,7 +116,6 @@ contract CryptoVoucher is UUPSUpgradeable, Initializable, OwnableUpgradeable {
   // After successfully redeeming the voucher, the caller gets their fee back.
   // NEVER EVER RUN `claimEthRedemption` AND `redeemCryptoVoucher` IN ONE TRANSACTION.
   // TO BE ABLE TO DO THAT YOU HAVE TO PROVIDE THE SECRET, THUS YOU CAN GET FRONT-RUN.
-  // We do ave accumulated 
   function claimEthRedemption(bytes32 voucherCode) external payable ReentrancyGuard {
     (, uint120 claimFee, uint16 isActive) = _deserializeValueClaimFeeActive(vouchers[voucherCode].valueClaimFeeActive);
     (address claimedBy, uint64 claimExpiresAt, uint32 expiredClaims) = _deserializeClaimedByExpiresAt(vouchers[voucherCode].claimedByExpiresAt);

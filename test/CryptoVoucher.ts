@@ -40,6 +40,7 @@ describe("CryptoVoucher", function () {
       const { CryptoVoucher, owner } = await loadFixture(deployCryptoVoucherFixture);
 
       expect(await CryptoVoucher.owner()).to.equal(owner.address);
+      expect(await CryptoVoucher.feeReceiver()).to.eq(owner.address);
     });
     it("Only admin can upgrade to new contract address", async() => {
       const { CryptoVoucher, ownerVoucher, owner, aliceVoucher } = await loadFixture(deployCryptoVoucherFixture);

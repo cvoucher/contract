@@ -116,7 +116,7 @@ contract CryptoVoucherToken is ERC20, Ownable {
   // Utility functions.
   // Recovery
   function recoverERC20(address token, uint balance) external onlyOwner {
-    // Don't recover CRO tokens. Safety for holders.
+    // Don't recover CVT tokens. Safety for holders.
     require(token != address(this), "CVT: INVALID_RECOVER");
     IERC20(token).transfer(owner(), balance);
   }

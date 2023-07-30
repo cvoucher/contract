@@ -3,6 +3,8 @@
     "build": "npx hardhat compile",
     "test": "npx hardhat test",
     "deploy": "npx hardhat run --network localhost scripts/deploy.ts",
+    "deploy:eth": "npx hardhat run --network ethereum scripts/deploy.ts",
+    "deploy:cv:eth": "npx hardhat run --network ethereum scripts/deploy_cryptovoucher.ts",
     "ganache": "npx hardhat run --network localhost scripts/deploy.ts"
   },
   "dependencies": {
